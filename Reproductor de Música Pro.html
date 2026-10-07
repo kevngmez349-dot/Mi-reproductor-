@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-neutral-950 text-neutral-100 antialiased selection:bg-emerald-500 selection:text-black">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SoundPulse - Reproductor Pro</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+            }
+          },
+          animation: {
+            'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- FontAwesome & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Scrollbar personalizada */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(23, 23, 23, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(64, 64, 64, 0.6);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(16, 185, 129, 0.8);
+    }
+
+    /* Estilo slider personalizado */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      border-radius: 9999px;
+      background: #262626;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      height: 14px;
+      width: 14px;
+      border-radius: 50%;
+      background: #10b981;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -4px;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+      transition: transform 0.1s ease;
+    }
+    input[type=range]:active::-webkit-slider-thumb {
+      transform: scale(1.3);
+    }
+
+    /* Glassmorphism */
+    .glass-panel {
+      background: rgba(18, 18, 18, 0.75);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glass-nav {
+      background: rgba(10, 10, 10, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    /* Ocultar elementos */
+    .hidden-input {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden bg-neutral-950 text-neutral-100">
+
+  <!-- Audio Tag Oculto -->
+  <audio id="audio-player" class="hidden" crossorigin="anonymous"></audio>
+
+  <!-- Input Ocultos para Archivos y Carpetas -->
+  <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden-input" accept="audio/*">
+  <input type="file" id="files-input" multiple class="hidden-input" accept="audio/*">
+
+  <!-- Application Layout -->
+  <div class="flex flex-1 h-full overflow-hidden relative">
+
+    <!-- SIDEBAR (Escritorio) -->
+    <aside class="hidden md:flex flex-col w-72 bg-neutral-900/60 border-r border-neutral-800/60 p-5 gap-6 flex-shrink-0 z-20">
+      <!-- Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <i class="fa-solid font-bold fa-compact-disc text-xl text-neutral-950 animate-spin" style="animation-duration: 8s;"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight tracking-wide text-white">SoundPulse</h1>
+          <p class="text-xs text-neutral-400 font-medium">Reproductor Local</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons (Cargar Archivos/Carpetas) -->
+      <div class="space-y-2.5">
+        <button id="btn-load-folder-side" class="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-[0.98]">
+          <i class="fa-solid fa-folder-open text-lg"></i>
+          <span>Cargar Carpeta</span>
+        </button>
+        <button id="btn-load-files-side" class="w-full py-2.5 px-4 bg-neutral-800/80 hover:bg-neutral-700/80 text-neutral-200 font-semibold rounded-xl border border-neutral-700/50 flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-[0.98] text-sm">
+          <i class="fa-solid fa-file-audio text-emerald-400"></i>
+          <span>Archivos Sueltos</span>
+        </button>
+      </div>
+
+      <!-- Navigation Menu -->
+      <nav class="space-y-1">
+        <button id="nav-all-songs" class="w-full px-3.5 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <i class="fa-solid fa-music w-5"></i>
+          <span>Todas las Pistas</span>
+          <span id="badge-total-tracks" class="ml-auto text-xs bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full font-mono">0</span>
+        </button>
+        <button id="nav-folders" class="w-full px-3.5 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 transition-colors">
+          <i class="fa-solid fa-folder-tree w-5"></i>
+          <span>Vista por Carpetas</span>
+          <span id="badge-total-folders" class="ml-auto text-xs bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full font-mono">0</span>
+        </button>
+      </nav>
+
+      <!-- Visualization Canvas (Ecualizador Visual Sidebar) -->
+      <div class="mt-auto p-4 rounded-2xl bg-neutral-950/60 border border-neutral-800/60 flex flex-col items-center gap-2">
+        <div class="flex items-center justify-between w-full text-xs text-neutral-400 font-medium">
+          <span>Ecualizador Visual</span>
+          <span id="eq-status" class="text-emerald-400 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Activo
+          </span>
+        </div>
+        <canvas id="visualizer-sidebar" class="w-full h-16 rounded-lg bg-neutral-900/50"></canvas>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative bg-gradient-to-b from-neutral-900/40 to-neutral-950">
+      
+      <!-- Top Header / Bar -->
+      <header class="p-4 md:px-8 border-b border-neutral-800/50 flex flex-col sm:flex-row items-center justify-between gap-4 flex-shrink-0 z-10 glass-nav">
+        
+        <!-- Mobile Header Logo & Folder Button -->
+        <div class="flex items-center justify-between w-full sm:w-auto md:hidden">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-neutral-950 font-bold">
+              <i class="fa-solid fa-compact-disc animate-spin" style="animation-duration: 8s;"></i>
+            </div>
+            <span class="font-bold text-base tracking-wide">SoundPulse</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-load-folder-mob" class="p-2.5 bg-emerald-500 text-neutral-950 rounded-lg font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-transform">
+              <i class="fa-solid fa-folder-plus text-sm"></i>
+              <span>Carpetas</span>
+            </button>
+            <button id="btn-load-files-mob" class="p-2.5 bg-neutral-800 text-neutral-200 rounded-lg text-xs active:scale-95 transition-transform border border-neutral-700/50">
+              <i class="fa-solid fa-file-audio text-emerald-400"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Input -->
+        <div class="relative w-full sm:w-80 md:w-96">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-sm"></i>
+          <input type="text" id="search-input" placeholder="Buscar canciones, artistas, archivos..." class="w-full pl-10 pr-9 py-2 bg-neutral-900/90 border border-neutral-800 rounded-xl text-sm placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/60 transition-all">
+          <button id="btn-clear-search" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Filter View Toggle (Mobile/Desktop Header Tabs) -->
+        <div class="flex items-center bg-neutral-900/90 p-1 rounded-xl border border-neutral-800 text-xs font-semibold w-full sm:w-auto justify-center">
+          <button id="tab-tracks" class="flex-1 sm:flex-none px-4 py-1.5 rounded-lg bg-emerald-500 text-neutral-950 transition-all">Pistas</button>
+          <button id="tab-folders" class="flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 transition-all">Carpetas</button>
+        </div>
+      </header>
+
+      <!-- Scrollable Track List / View Container -->
+      <div id="content-view" class="flex-1 overflow-y-auto p-4 md:p-8 pb-32 md:pb-28">
+        
+        <!-- Estado Vacío (Empty State) -->
+        <div id="empty-state" class="flex flex-col items-center justify-center h-full min-h-[350px] text-center p-6 max-w-md mx-auto">
+          <div class="w-20 h-20 rounded-3xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-emerald-400 text-3xl mb-5 shadow-2xl animate-pulse-subtle">
+            <i class="fa-solid fa-folder-open"></i>
+          </div>
+          <h2 class="text-xl font-bold text-white mb-2">No hay música cargada</h2>
+          <p class="text-neutral-400 text-sm mb-6 leading-relaxed">
+            Selecciona una carpeta completa desde tu dispositivo para importar tus archivos de audio locales con estructura ordenada.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-3 w-full">
+            <button id="btn-empty-folder" class="flex-1 py-3 px-5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/10 active:scale-95 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-folder-open"></i>
+              <span>Cargar Carpeta</span>
+            </button>
+            <button id="btn-empty-files" class="flex-1 py-3 px-5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold rounded-xl transition-all border border-neutral-700/50 active:scale-95 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-file-audio text-emerald-400"></i>
+              <span>Archivos</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de Pistas (Tracks List) -->
+        <div id="tracks-container" class="hidden">
+          <div class="flex items-center justify-between mb-4 px-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400" id="tracks-count-header">0 canciones</span>
+            <button id="btn-play-all" class="text-xs text-emerald-400 font-semibold hover:underline flex items-center gap-1.5">
+              <i class="fa-solid fa-play text-[10px]"></i> Reproducir todo
+            </button>
+          </div>
+          <div id="tracks-list" class="space-y-1">
+            <!-- Renderizado dinámico de pistas -->
+          </div>
+        </div>
+
+        <!-- Vista de Carpetas (Folders View) -->
+        <div id="folders-container" class="hidden">
+          <div class="mb-4 px-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-neutral-400" id="folders-count-header">0 carpetas</span>
+          </div>
+          <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Renderizado dinámico de carpetas -->
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- FOOTER PLAYER BAR (Controles Globales) -->
+  <footer class="fixed bottom-0 left-0 right-0 h-24 sm:h-22 glass-panel border-t border-neutral-800/80 px-4 sm:px-6 flex flex-col justify-center z-40">
+    
+    <!-- Time Progress Bar (Top of Footer on mobile) -->
+    <div class="absolute top-0 left-0 right-0 -translate-y-1/2 px-0">
+      <input type="range" id="progress-bar" min="0" max="100" value="0" class="w-full block">
+    </div>
+
+    <div class="flex items-center justify-between gap-2 sm:gap-6 max-w-7xl mx-auto w-full pt-1">
+
+      <!-- Current Track Info -->
+      <div class="flex items-center gap-3 w-1/3 min-w-0">
+        <div id="album-art" class="w-12 h-12 rounded-xl bg-neutral-800 border border-neutral-700/60 flex items-center justify-center flex-shrink-0 overflow-hidden relative shadow-md">
+          <i class="fa-solid fa-music text-neutral-500 text-lg"></i>
+          <canvas id="visualizer-mini" class="absolute inset-0 w-full h-full opacity-60 pointer-events-none hidden"></canvas>
+        </div>
+        <div class="min-w-0 flex-1">
+          <h3 id="player-title" class="text-sm font-bold text-white truncate leading-tight">Sin reproducción</h3>
+          <p id="player-artist" class="text-xs text-neutral-400 truncate mt-0.5">Selecciona una pista</p>
+        </div>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="flex flex-col items-center justify-center gap-1.5 w-1/3">
+        <div class="flex items-center gap-3 sm:gap-5">
+          <!-- Shuffle Button -->
+          <button id="btn-shuffle" class="text-neutral-400 hover:text-white transition-colors p-1 text-xs sm:text-sm" title="Modo aleatorio">
+            <i class="fa-solid fa-shuffle"></i>
+          </button>
+          
+          <!-- Prev Button -->
+          <button id="btn-prev" class="text-neutral-300 hover:text-white transition-transform active:scale-90 p-1 text-base sm:text-lg">
+            <i class="fa-solid fa-backward-step"></i>
+          </button>
+
+          <!-- Play/Pause Button -->
+          <button id="btn-play-pause" class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 flex items-center justify-center shadow-lg shadow-emerald-500/20 transition-transform active:scale-95">
+            <i class="fa-solid fa-play text-base translate-x-0.5"></i>
+          </button>
+
+          <!-- Next Button -->
+          <button id="btn-next" class="text-neutral-300 hover:text-white transition-transform active:scale-90 p-1 text-base sm:text-lg">
+            <i class="fa-solid fa-forward-step"></i>
+          </button>
+
+          <!-- Repeat Button -->
+          <button id="btn-repeat" class="text-neutral-400 hover:text-white transition-colors p-1 text-xs sm:text-sm relative" title="Repetir">
+            <i class="fa-solid fa-repeat"></i>
+            <span id="repeat-badge" class="hidden absolute -top-1 -right-1 text-[9px] bg-emerald-500 text-neutral-950 font-bold rounded-full w-3 h-3 flex items-center justify-center">1</span>
+          </button>
+        </div>
+
+        <!-- Time Counters -->
+        <div class="flex items-center gap-2 text-[11px] font-mono text-neutral-400">
+          <span id="time-current">0:00</span>
+          <span>/</span>
+          <span id="time-total">0:00</span>
+        </div>
+      </div>
+
+      <!-- Right Options (Volume & Canvas Modal Toggle) -->
+      <div class="flex items-center justify-end gap-3 w-1/3">
+        
+        <!-- Volume Control (Desktop) -->
+        <div class="hidden sm:flex items-center gap-2 group">
+          <button id="btn-mute" class="text-neutral-400 hover:text-white transition-colors">
+            <i id="volume-icon" class="fa-solid fa-volume-high text-sm"></i>
+          </button>
+          <input type="range" id="volume-bar" min="0" max="1" step="0.01" value="0.8" class="w-20 accent-emerald-500">
+        </div>
+
+        <!-- Equalizer Modal Toggle -->
+        <button id="btn-open-eq" class="p-2.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-700 text-emerald-400 transition-colors border border-neutral-700/50" title="Ver Ecualizador">
+          <i class="fa-solid fa-chart-simple text-sm"></i>
+        </button>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- EQUALIZER FULLSCREEN MODAL -->
+  <div id="eq-modal" class="fixed inset-0 bg-neutral-950/95 z-50 flex flex-col p-6 glass-panel hidden opacity-0 transition-opacity duration-300">
+    <div class="flex items-center justify-between border-b border-neutral-800 pb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+          <i class="fa-solid fa-sliders"></i>
+        </div>
+        <h2 class="text-lg font-bold text-white">Visualizador y Audio</h2>
+      </div>
+      <button id="btn-close-eq" class="w-10 h-10 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white flex items-center justify-center">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+    </div>
+
+    <!-- Modal Content -->
+    <div class="flex-1 flex flex-col items-center justify-center my-6 gap-6 min-h-0">
+      <div class="text-center">
+        <h3 id="eq-track-title" class="text-lg font-bold text-white truncate max-w-md">Sin reproducción</h3>
+        <p id="eq-track-artist" class="text-sm text-neutral-400">Audio Local</p>
+      </div>
+
+      <!-- Main Canvas Spectrum -->
+      <div class="w-full max-w-2xl h-64 bg-neutral-900/60 rounded-2xl border border-neutral-800/80 p-4 relative overflow-hidden flex items-center justify-center">
+        <canvas id="visualizer-full" class="w-full h-full"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===================================================================
+       SOUNDPULSE - LÓGICA DEL REPRODUCTOR
+       =================================================================== */
+
+    // Elementos del DOM
+    const audio = document.getElementById('audio-player');
+    const folderInput = document.getElementById('folder-input');
+    const filesInput = document.getElementById('files-input');
+    
+    // Botones de carga
+    const btnLoadFolderSide = document.getElementById('btn-load-folder-side');
+    const btnLoadFilesSide = document.getElementById('btn-load-files-side');
+    const btnLoadFolderMob = document.getElementById('btn-load-folder-mob');
+    const btnLoadFilesMob = document.getElementById('btn-load-files-mob');
+    const btnEmptyFolder = document.getElementById('btn-empty-folder');
+    const btnEmptyFiles = document.getElementById('btn-empty-files');
+
+    // Vistas y Contenedores
+    const emptyState = document.getElementById('empty-state');
+    const tracksContainer = document.getElementById('tracks-container');
+    const tracksList = document.getElementById('tracks-list');
+    const foldersContainer = document.getElementById('folders-container');
+    const foldersGrid = document.getElementById('folders-grid');
+    const badgeTotalTracks = document.getElementById('badge-total-tracks');
+    const badgeTotalFolders = document.getElementById('badge-total-folders');
+    const tracksCountHeader = document.getElementById('tracks-count-header');
+    const foldersCountHeader = document.getElementById('folders-count-header');
+
+    // Pestañas / Navegación
+    const navAllSongs = document.getElementById('nav-all-songs');
+    const navFolders = document.getElementById('nav-folders');
+    const tabTracks = document.getElementById('tab-tracks');
+    const tabFolders = document.getElementById('tab-folders');
+    const searchInput = document.getElementById('search-input');
+    const btnClearSearch = document.getElementById('btn-clear-search');
+
+    // Controles de Reproducción
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const btnNext = document.getElementById('btn-next');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnShuffle = document.getElementById('btn-shuffle');
+    const btnRepeat = document.getElementById('btn-repeat');
+    const repeatBadge = document.getElementById('repeat-badge');
+    const progressBar = document.getElementById('progress-bar');
+    const timeCurrent = document.getElementById('time-current');
+    const timeTotal = document.getElementById('time-total');
+    const btnPlayAll = document.getElementById('btn-play-all');
+
+    // Volumen
+    const volumeBar = document.getElementById('volume-bar');
+    const btnMute = document.getElementById('btn-mute');
+    const volumeIcon = document.getElementById('volume-icon');
+
+    // Info Reproductor Footer
+    const playerTitle = document.getElementById('player-title');
+    const playerArtist = document.getElementById('player-artist');
+
+    // Modal & Ecualizador Visual
+    const btnOpenEq = document.getElementById('btn-open-eq');
+    const btnCloseEq = document.getElementById('btn-close-eq');
+    const eqModal = document.getElementById('eq-modal');
+    const eqTrackTitle = document.getElementById('eq-track-title');
+    const eqTrackArtist = document.getElementById('eq-track-artist');
+
+    // Canvases
+    const canvasSidebar = document.getElementById('visualizer-sidebar');
+    const canvasFull = document.getElementById('visualizer-full');
+    const canvasMini = document.getElementById('visualizer-mini');
+
+    // ESTADO DE LA APLICACIÓN
+    let playlist = [];             // Pistas cargadas
+    let currentTrackIndex = -1;    // Índice de reproducción actual
+    let isShuffle = false;
+    let repeatMode = 0;            // 0: Sin repetir, 1: Repetir lista, 2: Repetir 1 pista
+    let activeView = 'tracks';     // 'tracks' | 'folders'
+    let folderStructure = {};      // Agrupación por carpetas
+    let filteredPlaylist = [];
+    let audioContext = null;
+    let analyser = null;
+    let audioSource = null;
+    let isAudioInitialized = false;
+
+    // LOCAL STORAGE KEYS
+    const STORAGE_KEY_VOL = 'soundpulse_volume';
+    const STORAGE_KEY_SHUFFLE = 'soundpulse_shuffle';
+    const STORAGE_KEY_REPEAT = 'soundpulse_repeat';
+
+    /* ===================================================================
+       INICIALIZACIÓN DE LA APP Y LOCALSTORAGE
+       =================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSettingsFromStorage();
+      setupEventListeners();
+      resizeCanvases();
+    });
+
+    function loadSettingsFromStorage() {
+      // Cargar Volumen
+      const savedVol = localStorage.getItem(STORAGE_KEY_VOL);
+      if (savedVol !== null) {
+        audio.volume = parseFloat(savedVol);
+        volumeBar.value = savedVol;
+        updateVolumeIcon(audio.volume);
+      }
+
+      // Cargar Shuffle
+      const savedShuffle = localStorage.getItem(STORAGE_KEY_SHUFFLE);
+      if (savedShuffle === 'true') {
+        isShuffle = true;
+        btnShuffle.classList.add('text-emerald-400');
+        btnShuffle.classList.remove('text-neutral-400');
+      }
+
+      // Cargar Repeat
+      const savedRepeat = localStorage.getItem(STORAGE_KEY_REPEAT);
+      if (savedRepeat !== null) {
+        repeatMode = parseInt(savedRepeat, 10);
+        updateRepeatUI();
+      }
+    }
+
+    /* ===================================================================
+       IMPORTACIÓN Y PROCESAMIENTO DE ARCHIVOS / CARPETAS
+       =================================================================== */
+    function triggerFolderSelect() { folderInput.click(); }
+    function triggerFilesSelect() { filesInput.click(); }
+
+    folderInput.addEventListener('change', (e) => handleFilesImport(e.target.files));
+    filesInput.addEventListener('change', (e) => handleFilesImport(e.target.files));
+
+    function handleFilesImport(files) {
+      if (!files || files.length === 0) return;
+
+      const newTracks = [];
+      folderStructure = {};
+
+      Array.from(files).forEach((file) => {
+        // Filtrar por tipo de audio
+        if (file.type.startsWith('audio/') || isAudioFileExtension(file.name)) {
+          const pathParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [file.name];
+          const folderName = pathParts.length > 1 ? pathParts[pathParts.length - 2] : 'Archivos Raíz';
+          
+          const track = {
+            id: 'track_' + Math.random().toString(36).substr(2, 9),
+            file: file,
+            title: cleanFileName(file.name),
+            artist: folderName !== 'Archivos Raíz' ? folderName : 'Audio Local',
+            folder: folderName,
+            url: URL.createObjectURL(file)
+          };
+
+          newTracks.push(track);
+
+          // Agrupar por carpetas
+          if (!folderStructure[folderName]) {
+            folderStructure[folderName] = [];
+          }
+          folderStructure[folderName].push(track);
+        }
+      });
+
+      if (newTracks.length > 0) {
+        playlist = newTracks;
+        filteredPlaylist = [...playlist];
+        currentTrackIndex = 0;
+        
+        renderUI();
+        loadTrack(0, false);
+      }
+    }
+
+    function isAudioFileExtension(fileName) {
+      return /\.(mp3|wav|ogg|m4a|aac|flac|webm)$/i.test(fileName);
+    }
+
+    function cleanFileName(fileName) {
+      return fileName.replace(/\.[^/.]+$/, "");
+    }
+
+    /* ===================================================================
+       RENDERIZADO DE INTERFAZ
+       =================================================================== */
+    function renderUI() {
+      if (playlist.length === 0) {
+        emptyState.classList.remove('hidden');
+        tracksContainer.classList.add('hidden');
+        foldersContainer.classList.add('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      badgeTotalTracks.textContent = playlist.length;
+      badgeTotalFolders.textContent = Object.keys(folderStructure).length;
+
+      if (activeView === 'tracks') {
+        renderTracksList(filteredPlaylist);
+        tracksContainer.classList.remove('hidden');
+        foldersContainer.classList.add('hidden');
+      } else {
+        renderFoldersGrid();
+        foldersContainer.classList.remove('hidden');
+        tracksContainer.classList.add('hidden');
+      }
+    }
+
+    function renderTracksList(tracksToRender) {
+      tracksList.innerHTML = '';
+      tracksCountHeader.textContent = `${tracksToRender.length} canciones`;
+
+      tracksToRender.forEach((track, idx) => {
+        const isCurrent = currentTrackIndex !== -1 && playlist[currentTrackIndex]?.id === track.id;
+        
+        const trackRow = document.createElement('div');
+        trackRow.className = `group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
+          isCurrent 
+            ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' 
+            : 'hover:bg-neutral-900/80 border border-transparent text-neutral-300'
+        }`;
+
+        trackRow.innerHTML = `
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="w-9 h-9 rounded-lg ${isCurrent ? 'bg-emerald-500 text-neutral-950 font-bold' : 'bg-neutral-800 text-neutral-400'} flex items-center justify-center flex-shrink-0 group-hover:border-emerald-500/50 border border-transparent transition-colors">
+              ${isCurrent && !audio.paused 
+                ? '<i class="fa-solid fa-volume-high text-sm animate-pulse"></i>' 
+                : `<i class="${isCurrent ? 'fa-solid fa-play' : 'fa-solid fa-music'} text-xs"></i>`
+              }
+            </div>
+            <div class="min-w-0">
+              <h4 class="text-sm font-semibold truncate ${isCurrent ? 'text-emerald-400' : 'text-white'}">${escapeHtml(track.title)}</h4>
+              <p class="text-xs text-neutral-400 truncate mt-0.5"><i class="fa-regular fa-folder text-[10px] mr-1"></i>${escapeHtml(track.folder)}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-neutral-500 font-mono hidden sm:inline">Local</span>
+          </div>
+        `;
+
+        trackRow.addEventListener('click', () => {
+          const originalIndex = playlist.findIndex(t => t.id === track.id);
+          if (originalIndex !== -1) {
+            loadTrack(originalIndex, true);
+          }
+        });
+
+        tracksList.appendChild(trackRow);
+      });
+    }
+
+    function renderFoldersGrid() {
+      foldersGrid.innerHTML = '';
+      const folders = Object.keys(folderStructure);
+      foldersCountHeader.textContent = `${folders.length} carpetas`;
+
+      folders.forEach((folderName) => {
+        const folderTracks = folderStructure[folderName];
+        
+        const folderCard = document.createElement('div');
+        folderCard.className = 'p-5 rounded-2xl bg-neutral-900/60 border border-neutral-800/80 hover:border-emerald-500/40 transition-all cursor-pointer group flex flex-col justify-between gap-4 hover:shadow-xl hover:shadow-emerald-500/5';
+        
+        folderCard.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl group-hover:scale-105 transition-transform">
+              <i class="fa-solid fa-folder"></i>
+            </div>
+            <span class="text-xs font-mono bg-neutral-800 text-neutral-400 px-2.5 py-1 rounded-full">${folderTracks.length} pistas</span>
+          </div>
+          <div>
+            <h4 class="text-base font-bold text-white group-hover:text-emerald-400 transition-colors truncate">${escapeHtml(folderName)}</h4>
+            <p class="text-xs text-neutral-400 mt-1">Haga clic para reproducir carpeta</p>
+          </div>
+        `;
+
+        folderCard.addEventListener('click', () => {
+          filteredPlaylist = [...folderTracks];
+          activeView = 'tracks';
+          updateTabState();
+          renderUI();
+          if (folderTracks.length > 0) {
+            const firstTrackIdx = playlist.findIndex(t => t.id === folderTracks[0].id);
+            if (firstTrackIdx !== -1) loadTrack(firstTrackIdx, true);
+          }
+        });
+
+        foldersGrid.appendChild(folderCard);
+      });
+    }
+
+    /* ===================================================================
+       CONTROL DE REPRODUCCIÓN & MEDIASESSION
+       =================================================================== */
+    function loadTrack(index, autoPlay = true) {
+      if (index < 0 || index >= playlist.length) return;
+
+      currentTrackIndex = index;
+      const track = playlist[currentTrackIndex];
+
+      audio.src = track.url;
+      playerTitle.textContent = track.title;
+      playerArtist.textContent = track.artist;
+      eqTrackTitle.textContent = track.title;
+      eqTrackArtist.textContent = track.artist;
+
+      renderUI();
+
+      if (autoPlay) {
+        initWebAudio();
+        audio.play().then(() => {
+          updatePlayPauseButton(true);
+        }).catch(err => console.log('Autoplay bloqueado:', err));
+      } else {
+        updatePlayPauseButton(false);
+      }
+
+      setupMediaSession(track);
+    }
+
+    function togglePlayPause() {
+      if (playlist.length === 0) return;
+
+      initWebAudio();
+
+      if (audio.paused) {
+        audio.play();
+        updatePlayPauseButton(true);
+      } else {
+        audio.pause();
+        updatePlayPauseButton(false);
+      }
+    }
+
+    function updatePlayPauseButton(isPlaying) {
+      btnPlayPause.innerHTML = isPlaying 
+        ? '<i class="fa-solid fa-pause text-base"></i>' 
+        : '<i class="fa-solid fa-play text-base translate-x-0.5"></i>';
+    }
+
+    function nextTrack() {
+      if (playlist.length === 0) return;
+
+      if (isShuffle) {
+        let randomIndex = Math.floor(Math.random() * playlist.length);
+        loadTrack(randomIndex, true);
+      } else {
+        let nextIndex = currentTrackIndex + 1;
+        if (nextIndex >= playlist.length) nextIndex = 0;
+        loadTrack(nextIndex, true);
+      }
+    }
+
+    function prevTrack() {
+      if (playlist.length === 0) return;
+
+      if (audio.currentTime > 3) {
+        audio.currentTime = 0;
+        return;
+      }
+
+      let prevIndex = currentTrackIndex - 1;
+      if (prevIndex < 0) prevIndex = playlist.length - 1;
+      loadTrack(prevIndex, true);
+    }
+
+    // Integración con MediaSession API (Pantalla de bloqueo y Notificaciones)
+    function setupMediaSession(track) {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title,
+          artist: track.artist,
+          album: track.folder,
+          artwork: [
+            { src: 'https://placehold.co/512x512/10b981/000000?text=Music', sizes: '512x512', type: 'image/png' }
+          ]
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
+        navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+        navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
+        navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
+      }
+    }
+
+    /* ===================================================================
+       ECUALIZADOR VISUAL Y WEB AUDIO API
+       =================================================================== */
+    function initWebAudio() {
+      if (isAudioInitialized) return;
+
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 64;
+
+        audioSource = audioContext.createMediaElementSource(audio);
+        audioSource.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        isAudioInitialized = true;
+        drawVisualizers();
+      } catch (e) {
+        console.warn('Web Audio API no soportado o ya inicializado:', e);
+      }
+    }
+
+    function drawVisualizers() {
+      requestAnimationFrame(drawVisualizers);
+
+      if (!analyser) return;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
+
+      // Dibujar en Sidebar
+      renderSpectrum(canvasSidebar, dataArray, bufferLength, '#10b981');
+
+      // Dibujar en Modal Fullscreen
+      renderSpectrum(canvasFull, dataArray, bufferLength, '#34d399');
+    }
+
+    function renderSpectrum(canvas, dataArray, bufferLength, colorHex) {
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const barWidth = (width / bufferLength) * 2;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const barHeight = (dataArray[i] / 255) * height;
+
+        ctx.fillStyle = colorHex;
+        ctx.beginPath();
+        ctx.roundRect(x, height - barHeight, barWidth - 3, barHeight, [4, 4, 0, 0]);
+        ctx.fill();
+
+        x += barWidth;
+      }
+    }
+
+    function resizeCanvases() {
+      [canvasSidebar, canvasFull].forEach(canvas => {
+        if (canvas && canvas.parentElement) {
+          canvas.width = canvas.parentElement.clientWidth;
+          canvas.height = canvas.parentElement.clientHeight;
+        }
+      });
+    }
+
+    window.addEventListener('resize', resizeCanvases);
+
+    /* ===================================================================
+       EVENT LISTENERS
+       =================================================================== */
+    function setupEventListeners() {
+      // Botones Cargar
+      btnLoadFolderSide.addEventListener('click', triggerFolderSelect);
+      btnLoadFilesSide.addEventListener('click', triggerFilesSelect);
+      btnLoadFolderMob.addEventListener('click', triggerFolderSelect);
+      btnLoadFilesMob.addEventListener('click', triggerFilesSelect);
+      btnEmptyFolder.addEventListener('click', triggerFolderSelect);
+      btnEmptyFiles.addEventListener('click', triggerFilesSelect);
+
+      // Reproducción
+      btnPlayPause.addEventListener('click', togglePlayPause);
+      btnNext.addEventListener('click', nextTrack);
+      btnPrev.addEventListener('click', prevTrack);
+      btnPlayAll.addEventListener('click', () => {
+        if (playlist.length > 0) loadTrack(0, true);
+      });
+
+      // Modos de reproducción
+      btnShuffle.addEventListener('click', () => {
+        isShuffle = !isShuffle;
+        localStorage.setItem(STORAGE_KEY_SHUFFLE, isShuffle);
+        btnShuffle.classList.toggle('text-emerald-400', isShuffle);
+        btnShuffle.classList.toggle('text-neutral-400', !isShuffle);
+      });
+
+      btnRepeat.addEventListener('click', () => {
+        repeatMode = (repeatMode + 1) % 3;
+        localStorage.setItem(STORAGE_KEY_REPEAT, repeatMode);
+        updateRepeatUI();
+      });
+
+      // Progreso de pista
+      audio.addEventListener('timeupdate', () => {
+        if (!isNaN(audio.duration)) {
+          const pct = (audio.currentTime / audio.duration) * 100;
+          progressBar.value = pct;
+          timeCurrent.textContent = formatTime(audio.currentTime);
+          timeTotal.textContent = formatTime(audio.duration);
+        }
+      });
+
+      progressBar.addEventListener('input', () => {
+        if (!isNaN(audio.duration)) {
+          audio.currentTime = (progressBar.value / 100) * audio.duration;
+        }
+      });
+
+      // Fin de pista
+      audio.addEventListener('ended', () => {
+        if (repeatMode === 2) {
+          audio.currentTime = 0;
+          audio.play();
+        } else {
+          nextTrack();
+        }
+      });
+
+      // Volumen
+      volumeBar.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        audio.volume = val;
+        localStorage.setItem(STORAGE_KEY_VOL, val);
+        updateVolumeIcon(val);
+      });
+
+      btnMute.addEventListener('click', () => {
+        if (audio.volume > 0) {
+          audio.volume = 0;
+          volumeBar.value = 0;
+        } else {
+          audio.volume = 0.8;
+          volumeBar.value = 0.8;
+        }
+        updateVolumeIcon(audio.volume);
+      });
+
+      // Búsqueda en tiempo real
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        btnClearSearch.classList.toggle('hidden', query === '');
+
+        filteredPlaylist = playlist.filter(track => 
+          track.title.toLowerCase().includes(query) || 
+          track.folder.toLowerCase().includes(query)
+        );
+
+        renderUI();
+      });
+
+      btnClearSearch.addEventListener('click', () => {
+        searchInput.value = '';
+        btnClearSearch.classList.add('hidden');
+        filteredPlaylist = [...playlist];
+        renderUI();
+      });
+
+      // Pestañas / Cambio de vista
+      navAllSongs.addEventListener('click', () => setView('tracks'));
+      navFolders.addEventListener('click', () => setView('folders'));
+      tabTracks.addEventListener('click', () => setView('tracks'));
+      tabFolders.addEventListener('click', () => setView('folders'));
+
+      // Modal Ecualizador
+      btnOpenEq.addEventListener('click', () => {
+        eqModal.classList.remove('hidden');
+        setTimeout(() => eqModal.classList.remove('opacity-0'), 10);
+        resizeCanvases();
+      });
+
+      btnCloseEq.addEventListener('click', () => {
+        eqModal.classList.add('opacity-0');
+        setTimeout(() => eqModal.classList.add('hidden'), 300);
+      });
+    }
+
+    /* ===================================================================
+       UTILIDADES AUXILIARES
+       =================================================================== */
+    function setView(view) {
+      activeView = view;
+      updateTabState();
+      renderUI();
+    }
+
+    function updateTabState() {
+      if (activeView === 'tracks') {
+        tabTracks.className = 'flex-1 sm:flex-none px-4 py-1.5 rounded-lg bg-emerald-500 text-neutral-950 font-bold transition-all';
+        tabFolders.className = 'flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 transition-all';
+        
+        navAllSongs.className = 'w-full px-3.5 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        navFolders.className = 'w-full px-3.5 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 transition-colors';
+      } else {
+        tabFolders.className = 'flex-1 sm:flex-none px-4 py-1.5 rounded-lg bg-emerald-500 text-neutral-950 font-bold transition-all';
+        tabTracks.className = 'flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 transition-all';
+        
+        navFolders.className = 'w-full px-3.5 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        navAllSongs.className = 'w-full px-3.5 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 transition-colors';
+      }
+    }
+
+    function updateRepeatUI() {
+      if (repeatMode === 0) {
+        btnRepeat.className = 'text-neutral-400 hover:text-white transition-colors p-1 text-xs sm:text-sm relative';
+        repeatBadge.classList.add('hidden');
+      } else if (repeatMode === 1) {
+        btnRepeat.className = 'text-emerald-400 transition-colors p-1 text-xs sm:text-sm relative';
+        repeatBadge.classList.add('hidden');
+      } else if (repeatMode === 2) {
+        btnRepeat.className = 'text-emerald-400 transition-colors p-1 text-xs sm:text-sm relative';
+        repeatBadge.classList.remove('hidden');
+      }
+    }
+
+    function updateVolumeIcon(vol) {
+      if (vol === 0) {
+        volumeIcon.className = 'fa-solid fa-volume-xmark text-sm text-neutral-500';
+      } else if (vol < 0.5) {
+        volumeIcon.className = 'fa-solid fa-volume-low text-sm text-neutral-300';
+      } else {
+        volumeIcon.className = 'fa-solid fa-volume-high text-sm text-neutral-300';
+      }
+    }
+
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return '0:00';
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, function(m) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#039;'
+        }[m];
+      });
+    }
+  </script>
+</body>
+</html>
